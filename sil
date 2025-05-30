@@ -1,0 +1,67 @@
+import { Field, tokens } from '@ds/react-components';
+import { FC, useEffect, useRef, useState } from 'react';
+import { ControlType } from '../../enums';
+import type { ControlValue, FormSection } from '../DynamicForm/DynamicForm.types';
+import { AutoGrowTextArea } from './AutogrowTextArea';
+
+type TextareaControlProps = {
+    section: FormSection;
+    onValueChange: (value: ControlValue) => void;
+    value: string | null;
+};
+
+export const TextareaControl: FC<TextareaControlProps> = ({ value, section, onValueChange }) => {
+    const initialValue = value ?? '';
+    const [textValue, setTextValue] = useState(initialValue);
+    const [debouncedValue, setDebouncedValue] = useState(initialValue);
+    const lastSubmittedValueRef = useRef<string>(initialValue);
+    const isFirstRender = useRef(true);
+
+    // Debounce effect
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            setDebouncedValue(textValue);
+        }, 400);
+        return () => clearTimeout(handler);
+    }, [textValue]);
+
+    // Call onValueChange only when needed
+    useEffect(() => {
+        if (isFirstRender.current) {
+            isFirstRender.current = false;
+            return; 
+        }
+
+        if (debouncedValue !== lastSubmittedValueRef.current) {
+            onValueChange({
+                id: section.id,
+                contentId: section.contentId,
+                value: debouncedValue,
+                controlType: ControlType.TextArea,
+            });
+            lastSubmittedValueRef.current = debouncedValue;
+        }
+    }, [debouncedValue, section, onValueChange]);
+
+    // Input handler
+    const handleChange = (_e: unknown, { value }: { value: string }) => {
+        setTextValue(value);
+    };
+
+    // Conditional rendering
+    if (section.parentContentId) {
+        return (
+            <Field label={section.title} relationship="htmlFor" hint={section.description ?? undefined}>
+                <AutoGrowTextArea value={textValue} onChange={handleChange} />
+            </Field>
+        );
+    }
+
+    return (
+        <AutoGrowTextArea
+            value={textValue}
+            style={{ marginTop: tokens.spacingVerticalS }}
+            onChange={handleChange}
+        />
+    );
+};
